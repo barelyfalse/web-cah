@@ -1,12 +1,63 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/classes/card.js"></script>
+  <script src="js/cards.js"></script>
+  <script defer src="js/index.js"></script>
+  <script defer src="js/eventListeners.js"></script>
   <title>CaH</title>
 </head>
 <body>
-  Hola papu
+  <div id="full-overlay">
+    <template id="cardTemplate">
+      <div class="card-wrapper">
+        <div class="card">fun</div> 
+      </div>
+    </template>
+    <!--
+    <div class="card-wrapper move" id="aa">
+      <div class="card card-white">Ejercicios para fomentar la sinergia del equipo</div> 
+    </div>
+    -->
+    
+    <div id="card-selection"></div>
+  </div>
+  
+  <script>
+    /*
+    let elem = document.querySelector('.move');
+    let x = 0;
+    let y = 0;
+    let mousedown = false;
+
+    elem.addEventListener('mousedown', function(e) {
+      mousedown = true;
+      x = elem.offsetLeft - e.clientX;
+      y = elem.offsetTop - e.clientY;
+      e.preventDefault(); // prevent browser's default drag behavior
+    }, true);
+
+    document.addEventListener('mouseup', function(e) {
+      mousedown = false;
+    }, true);
+
+    elem.addEventListener('mousemove', function(e) {
+      if (mousedown) {
+        elem.querySelector('.card').classList.add('raise')
+        elem.classList.add('filter-shadow')
+        elem.style.left = e.clientX + x + 'px';
+        elem.style.top = e.clientY + y + 'px';
+      } else {
+        elem.querySelector('.card').classList.remove('raise')
+        elem.classList.remove('filter-shadow')
+      }
+    }, true);
+    */
+  </script>
 </body>
 </html>

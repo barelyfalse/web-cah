@@ -1,5 +1,5 @@
 {
 	"verbose": false,
-	"ext": "*.js,*.css",
+	"ext": "*.js,*.css,*.html",
 	"ignore": ["*.test.js", "**/fixtures/**"]
 }

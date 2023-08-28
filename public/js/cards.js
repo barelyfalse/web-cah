@@ -1,23 +1,3 @@
-require('dotenv').config()
-
-const Parse = require('parse/node');
-const express = require('express')
-var app = express()
-
-app.use(express.static('public'))
-
-app.get('/', function(req, res) {
-  res.sendFile(__dirname + '/public/index.html')
-})
-
-app.listen(process.env.SERVER_PORT)
-console.log('Server listening on port ' + process.env.SERVER_PORT)
-
-/*
-Parse.initialize(process.env.B4A_APP_ID, process.env.B4A_JS_KEY);
-Parse.serverURL = 'https://parseapi.back4app.com/'
-*/
-
 var whiteCards = [
   {text:"Una maldición gitana"},
   {text:"Un minuto de silencio"},

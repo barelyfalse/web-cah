@@ -1,7 +1,8 @@
 window.addEventListener('resize', setSelectionZoneWidth);
-selectionZoneEl.addEventListener('mousemove', handleSelectionPointerMove);
-selectionZoneEl.addEventListener('touchmove', handleSelectionPointerMove);
-selectionZoneEl.addEventListener('mouseleave', handleSelectionPointerLeave);
+document.addEventListener('click', handleDocumentTap)
 selectionZoneEl.addEventListener('touchstart', handleTouchTapStart);
-selectionZoneEl.addEventListener('click', handleSelection);
-selectionZoneEl.addEventListener('touchend', handleSelection);
+selectionZoneEl.addEventListener('touchmove', handleSelectionPointerMove);
+selectionZoneEl.addEventListener('touchend', handleSelectionPointerUp);
+selectionZoneEl.addEventListener('mousemove', handleSelectionPointerMove);
+selectionZoneEl.addEventListener('mouseup', handleSelectionPointerUp);
+selectionZoneEl.addEventListener('mouseleave', handleSelectionPointerLeave)

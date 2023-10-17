@@ -1,7 +1,19 @@
+:root {
+  --main-bg: rgb(20, 20, 20);
+  --sec-bg: rgb(24, 24, 24);
+  --tir-bg: rgb(39, 39, 39);
+  --main-fg: rgb(226, 226, 226);
+  --constrast-fg: white;
+  --muted-fg: rgb(185, 185, 185);
+}
+
 * {
   margin: 0;
-  background-color: rgb(0, 0, 0);
   font-family: "Helvetica", Arial, sans-serif;;
+}
+
+body {
+  background-color: var(--main-bg);
 }
 
 #full-overlay {
@@ -13,6 +25,86 @@
   overflow: hidden;
 }
 
+.view {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--main-fg);
+  transform: none;
+  opacity: 1;
+  filter: none;
+  transition: opacity 250ms ease-out, transform 250ms ease-in-out, filter 250ms ease-out;
+}
+
+#face {
+  gap: 1rem;
+  text-align: center;
+}
+
+.view-move {
+  transform: scale(1.2) translate(-100px, -100px);
+  filter: brightness(0.2);
+  opacity: 0;
+  pointer-events: none;
+  z-index: -2;
+}
+#prepare {
+  gap: 1rem;
+  text-align: center;
+}
+#prepare .back-holder {
+  width: 80%;
+  text-align: left;
+}
+#prepare .prepare-form {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  flex-grow: 0;
+  background-color: var(--sec-bg);
+  padding: 2rem;
+  border-radius: 10px;
+}
+#prepare .prepare-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.btn {
+  padding: 0.8rem 1.5rem;
+  border-radius: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  border: none;
+  transition: background-color 150ms ease;
+}
+.btn-primary {
+  background-color: var(--main-fg);
+  color: var(--main-bg);
+}
+.btn-primary:hover {
+  background-color: var(--constrast-fg);
+}
+.btn-primary:active {
+  background-color: var(--muted-fg);
+}
+.btn-outlined {
+  background-color: transparent;
+  border: 2px solid var(--main-fg);
+  color: var(--main-fg);
+}
+.input {
+  padding: 0.5rem 1rem;
+  border-radius: 10px;
+  background-color: var(--sec-bg);
+  color: var(--main-fg);
+  border: 2px solid var(--main-fg);
+  font-size: 1rem;
+}
 #card-selection {
   position: fixed;
   bottom: 0;
@@ -26,13 +118,82 @@
 }
 @media (min-width: 768px) and (max-width: 1199px) {
   #card-selection {
-    width: 80%; /* Width for screens from 768px to 1199px */
+    width: 80%;
   }
 }
 @media (min-width: 1200px) {
   #card-selection {
-    width: 60%; /* Width for screens 1200px and above */
+    width: 60%;
   }
+}
+
+#snackbar-holder {
+  position: fixed;
+  top: 1rem;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  width: 100%;
+  gap: 4px;
+
+}
+.snack {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  color: var(--main-fg);
+  background-color: var(--sec-bg);
+  padding: 0.4rem 1rem;
+  border-radius: 8px;
+  transition: opacity 1s ease-in;
+}
+.snack-hidden {
+  opacity: 0;
+}
+.snack-active {
+  opacity: 1;
+  transition: opacity 250ms ease-in;
+}
+
+#lobby {
+  gap: 1rem;
+}
+#lobby .lobby-params {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 90%;
+}
+@media (min-width: 768px) {
+  #lobby .lobby-params {
+    flex-direction: row;
+    width: auto;
+  }
+}
+#lobby .lobby-params .lobby-list {
+  background-color: var(--sec-bg);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border-radius: 0.5rem;
+}
+@media (min-width: 768px) {
+  #lobby .lobby-params .lobby-list {
+    min-width: 200px;
+  }
+}
+#lobby .lobby-params .lobby-list .lobby-player {
+  background-color: var(--tir-bg);
+  padding: 0.4rem 1rem;
+  border-radius: 0.2rem;
+}
+#lobby .lobby-params .lobby-list .lobby-master::after {
+  content: "(👑)";
+  margin-left: 8px;
+}
+#lobby .lobby-settings {
+  padding: 0.4rem 1rem;
 }
 
 .card-wrapper {
@@ -68,5 +229,4 @@
   transform: translateY(-16rem) translateX(0rem);
   transition: transform 0.4s ease, box-shadow 0.4s ease, z-index 0.2s step-end;
 }
-
 

@@ -17,13 +17,6 @@ class Card {
     this.cardEl.style.left = `${this.x}px`;
     this.cardEl.style.top = `${this.y}px`;
     screenParent.appendChild(this.cardEl);
-    /* this.cardEl.addEventListener('transitionend', (event) => {
-      if (event.propertyName === 'transform' && this.cardEl.querySelector('.card').classList.contains('raise')) {
-        this.cardEl.style.zIndex = 10; // Change z-index at the end of the transform transition
-      } else {
-        this.cardEl.style.zIndex = 0;
-      }
-    }); */
   }
 
   move() {
@@ -40,20 +33,6 @@ class Card {
       this.cardEl.style.top = `${this.y}px`;
       return;
     }
-
-    const easeOut = t => t * (2 - t)
-    const easeOutLinear = t => 0.6 * t * (2 - t) + 0.7 * t;
-    const easeIn = t => t * t
-    const easeInOut = t => Math.pow(t, 2) * (3 - (2 * t))
-
-    const fraction = this.movementT / distance
-
-    const easedFraction = easeOutLinear(fraction)
-
-    /*
-    const stepX = deltaX * easedFraction
-    const stepY = deltaY * easedFraction
-    */
 
     const stepX = deltaX / distance
     const stepY = deltaY / distance

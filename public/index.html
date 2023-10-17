@@ -6,58 +6,63 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="css/style.css">
-  <script src="js/classes/card.js"></script>
+  <script src="js/classes/Card.js"></script>
   <script src="js/cards.js"></script>
+  <script defer src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script defer src="js/index.js"></script>
   <script defer src="js/eventListeners.js"></script>
   <title>CaH</title>
 </head>
 <body>
-  <div id="full-overlay">
-    <template id="cardTemplate">
-      <div class="card-wrapper">
-        <div class="card">fun</div> 
-      </div>
-    </template>
-    <!--
-    <div class="card-wrapper move" id="aa">
-      <div class="card card-white">Ejercicios para fomentar la sinergia del equipo</div> 
+  <template id="cardTemplate">
+    <div class="card-wrapper">
+      <div class="card">fun</div> 
     </div>
-    -->
-    
+  </template>
+  <template id="snackbar-template">
+    <div class="snack snack-hidden">
+      <div class="snack-icon">&#8505</div>
+      <div class="snack-text"></div> 
+    </div>
+  </template>
+  <div id="full-overlay">
+    <div id="lobby" class="view view-move">
+      <h2>Lobby</h2>
+      <div class="lobby-params">
+        <div class="lobby-list">
+          <div class="lobby-player lobby-master">Player</div>
+          <div class="lobby-player">An strangely large usernamee</div>
+        </div>
+        <div class="lobby-settings">
+          <strong>Lobby params</strong>
+          <div class="lobby-setting">Rounds: 25</div>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="leaveRoom()">Leave room</button>
+    </div>
+    <div id="prepare" class="view view-move">
+      <div class="back-holder"><button class="btn btn-outlined" onclick="showFace()">&lt; Back</button></div>
+      <h2 id="prepare-title">Join Room</h2>
+      <div class="prepare-form">
+        <div class="form-group" id="prepare-looby-id-form">
+          <h3>Looby ID</h3>
+          <input type="text" id="roomid" class="input">
+        </div>
+        <div class="form-group">
+          <h3>Username</h3>
+          <input type="text" id="uname" class="input">
+        </div>
+        <button id="prepare-submit" class="btn btn-primary" onclick="joinCreate()">Join Room</button>
+      </div>
+    </div>
+    <div id="face" class="view view-move">
+      <h1>C A H</h1>
+      <button class="btn btn-primary" onclick="joinView()">Join Room</button>
+      <button class="btn btn-primary" onclick="createView()">Create Room</button>
+    </div>
     <div id="card-selection"></div>
+    <div id="snackbar-holder"></div>
+    
   </div>
-  
-  <script>
-    /*
-    let elem = document.querySelector('.move');
-    let x = 0;
-    let y = 0;
-    let mousedown = false;
-
-    elem.addEventListener('mousedown', function(e) {
-      mousedown = true;
-      x = elem.offsetLeft - e.clientX;
-      y = elem.offsetTop - e.clientY;
-      e.preventDefault(); // prevent browser's default drag behavior
-    }, true);
-
-    document.addEventListener('mouseup', function(e) {
-      mousedown = false;
-    }, true);
-
-    elem.addEventListener('mousemove', function(e) {
-      if (mousedown) {
-        elem.querySelector('.card').classList.add('raise')
-        elem.classList.add('filter-shadow')
-        elem.style.left = e.clientX + x + 'px';
-        elem.style.top = e.clientY + y + 'px';
-      } else {
-        elem.querySelector('.card').classList.remove('raise')
-        elem.classList.remove('filter-shadow')
-      }
-    }, true);
-    */
-  </script>
 </body>
 </html>

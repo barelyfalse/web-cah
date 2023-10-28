@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pusher test</title>
+</head>
+<body>
+  <h1>Pusher testing</h1>
+  <div id="user_list"></div>
+    <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
+    <script>
+      Pusher.logToConsole = true;
+      const pusher = new Pusher(
+        "16494569c1a82a4fde64", {
+          cluster: "us2",
+          forceTLS: true,
+          channelAuthorization: { endpoint: "pusher/auth" }
+        }
+      );
+      if (!document.cookie.match("(^|;) ?user_id=([^;]*)(;|$)")) {
+        // Primitive authorization! This 'user_id' cookie is read by your authorization endpoint,
+        // and used as the user_id in the subscription to the 'presence-quickstart'
+        // channel. This is then displayed to all users in the user list.
+        // In your production app, you should use a secure authorization system.
+        document.cookie = "user_id=" + prompt("Your initials:");
+      }
+      const channel = pusher.subscribe("presence-quickstart");
+      const hashCode = (s) =>
+        s.split("").reduce((a, b) => {
+          a = (a << 5) - a + b.charCodeAt(0);
+          return a & a;
+        }, 0);
+      function addMemberToUserList(memberId) {
+        userEl = document.createElement("div");
+        userEl.id = "user_" + memberId;
+        userEl.innerText = memberId;
+        userEl.style.backgroundColor =
+          "hsl(" + (hashCode(memberId) % 360) + ",70%,60%)";
+        document.getElementById("user_list").appendChild(userEl);
+      }
+      channel.bind("pusher:subscription_succeeded", () =>
+        channel.members.each((member) => addMemberToUserList(member.id))
+      );
+      channel.bind("pusher:member_added", (member) =>
+        addMemberToUserList(member.id)
+      );
+      channel.bind("pusher:member_removed", (member) => {
+        const userEl = document.getElementById("user_" + member.id);
+        userEl.parentNode.removeChild(userEl);
+      });
+    </script>
+    <style>
+      body {
+        margin: 1em;
+      }
+      #user_list div {
+        float: right;
+        margin-left: -12px;
+        font-family: sans-serif;
+        text-align: center;
+        height: 40px;
+        width: 40px;
+        line-height: 40px;
+        border-radius: 50%;
+        border: 3px solid white;
+        color: white;
+      }
+    </style>
+</body>
+</html>

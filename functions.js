@@ -11,6 +11,24 @@ function generateRoomId(notEqu = []) {
   return rndString;
 }
 
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+function createArrayFromLength(length) {
+  const result = [];
+  for (let i = 0; i < length; i++) {
+    result.push(i);
+  }
+  return result;
+}
+
 module.exports = {
-  generateRoomId
+  generateRoomId,
+  shuffle,
+  createArrayFromLength
 }

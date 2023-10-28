@@ -1,9 +1,10 @@
 require('dotenv').config()
 const express = require('express')
 const mongoose = require('mongoose')
+const Pusher = require('pusher')
+const cookieParser = require('cookie-parser')
 const { v4: uuidv4 } = require('uuid')
-const http = require('http')
-const { generateRoomId } = require('./functions')
+const { generateRoomId, shuffle, createArrayFromLength } = require('./functions')
 
 // Cards
 const { spaWhite, spaBlack } = require('./carddata')
@@ -11,15 +12,11 @@ const { spaWhite, spaBlack } = require('./carddata')
 // Models
 const Room = require('./models/room')
 
-// Server app
+// Server app set
 var app = express()
-
-// Socket.io setup
-const server = http.createServer(app);
-const { Server } = require("socket.io");
-const io = new Server(server);
-
-let userTimers = new Map();
+app.use(express.json());
+app.use(cookieParser());
+app.use(express.urlencoded({ extended: false }));
 
 // Resgister public directory
 app.use(express.static('public'))
@@ -28,165 +25,172 @@ app.get('/', function(req, res) {
   res.sendFile(__dirname + '/public/index.html')
 })
 
-io.on('connection', async (socket) => {
-  let clientId = socket.handshake.query.clientId;
-  console.log(socket.rooms)
-  if (!clientId) {
-    clientId = uuidv4();
-    socket.emit('store-id', clientId);
-    socket.emit('show-face');
-    console.log('New user connected ' + socket.id + ' | ' + clientId);
-  } else {
-    const inRoom = await Room.findOne({ 'players.id': clientId, state: { $in: ['lobby', 'game'] } } );
-    if (inRoom) {
-      socket.join(inRoom._id.toString());
-      socket.emit('join-lobby');
-      const players = inRoom.players.map((p) => { return { name: p.uName, isMaster: p.isMaster } })
-      socket.emit('lobby-update', { players: players, settings: {} }, (response) => { });
-    } else {
-      socket.emit('show-face');
-    }
-    console.log('Known user connected ' + socket.id + ' | ' + clientId);
-  }
-
-  socket.on("create-room", async (arg, callback) => {
-    const unamerx = /^[a-zA-Z0-9 !@#$%^&*()_+\[\]:,.?~\\/-]{1,25}$/;
-    if (unamerx.test(arg.trim())) {
-      try {
-        const rooms = await Room.find()
-        const newPublicId = generateRoomId(rooms.map((room) => room.publicId))
-        const newRoom = new Room({
-          publicId: newPublicId,
-          players: [ { id: clientId, uName: arg.trim(), isMaster: true, state: 'onLobby' } ],
-          curRound: 0,
-          state: 'lobby'
-        })
-        const savedRoom = await newRoom.save();
-        console.log(savedRoom._id.toString())
-        socket.join(savedRoom._id.toString());
-        console.log(socket.rooms)
-        callback({status: 'OK'});
-        socket.emit('join-lobby');
-        socket.emit('lobby-update', { players: [{name: arg.trim(), isMaster: true,}], settings: { lobbyId: newPublicId } }, (response) => {
-          console.log('Lobby created');
-        });
-      } catch(err) {
-        console.log(err)
-        callback({status: 'Error'});
-      }
-    } else {
-      callback({status: 'Error', msg: 'Invalid username!'});
-    }
-    
-  });
-
-  socket.on('join-room', async (arg, callback) => {
-    const unamergx = /^[a-zA-Z0-9 !@#$%^&*()_+\[\]:,.?~\\/-]{1,25}$/;
-    if (unamergx.test(arg.uname.trim()) && clientId) {
-      const ridregx = /^[A-Z0-9]{5}$/;
-      if (ridregx.test(arg.publicId.trim().toUpperCase())) {
-        const room = await Room.findOne({ 'publicId': arg.publicId.trim().toUpperCase() });
-        if (room) {
-          socket.join(room._id.toString());
-          //console.log(socket.rooms)
-          const roomUpdated = await Room.updateOne({ _id: room._id }, { $push: { players: { id: clientId, uName: arg.uname.trim(), isMaster: false, state: 'onLobby'} } })
-          if (roomUpdated.acknowledged) {
-            callback({status: 'OK'})
-            socket.emit('join-lobby');
-            //pull all players?
-            let players = room.players.map((p) => { return { name: p.uName, isMaster: p.isMaster } })
-            players.push({name: arg.uname.trim(), isMaster: false })
-            io.in(room._id.toString()).emit('lobby-update', { players: players, settings: { lobbyId: arg.publicId.trim().toUpperCase() } }, (response) => {});
-          } else {
-            callback({status: 'Error', msg: 'Something happened'})
-          }
-        } else {
-          callback({status: 'Error', msg: 'Unknown room ID'})
-        }
-      } else {
-        callback({status: 'Error', msg: 'Invalid room ID'})
-      }
-    } else {
-      callback({status: 'Error', msg: 'Invalid username'})
-    }
-  });
-
-  socket.on('leave-room', async (arg, callback) => { 
-    const inRoom = await Room.findOne({ 'players.id': clientId, state: { $in: ['onLobby', 'game'] } } );
-    if (inRoom) {
-      // borrar si es el último player en la sala
-      if (inRoom.players.length <= 1) {
-        const deletedRoom = await Room.deleteOne({ _id: inRoom._id })
-        if (deletedRoom.acknowledged == true) {
-          callback({status: 'OK'})
-        } else {
-          callback({status: 'Something happened'})
-        }
-      } else {
-        
-        const player = inRoom.players.find(player => player.id === clientId);
-
-        if (player.isMaster) {
-          //delete then set new master
-          const deletedPlayer = await Room.updateOne({ _id: inRoom._id }, { $pull: { players: { id: clientId }}})
-          if (deletedPlayer.acknowledged == true) {
-            const newMaster = await Room.updateOne({ _id: inRoom._id, 'players.id': { $ne: clientId }}, { $set: { 'players.$[player].isMaster': true }}, { arrayFilters: [{ 'player.id': {$ne: clientId }}]})
-            if (newMaster.acknowledged == true) {
-              // OK
-            } else {
-              callback({status: 'Error', msg: 'Something happened'})
-            }
-          } else {
-            callback({status: 'Error', msg: 'Something happened'})
-          }
-        } else {
-          const deletedPlayer = await Room.updateOne({ _id: inRoom._id }, { $pull: { players: { id: clientId }}})
-          if (deletedPlayer.acknowledged == true) { 
-            // OK
-          } else {
-            callback({status: 'Error', msg: 'Something happened'})
-          }
-        }
-      }
-      const players = inRoom.players.map((player) => {
-        return {name: player.uName, isMaster: player.isMaster}
-      })
-      io.in(inRoom._id.toString()).emit('lobby-update', { players: players, settings: { lobbyId: inRoom.publicId } }, (response) => {})
-      socket.leave(inRoom._id.toString());
-    } else {
-      callback({status: 'Error', msg: 'Something happened'})
-    }
-  })
-
-  socket.on('disconnect', async () => {
-    console.log('user disconnected ' + socket.id);
-    /* room = await Room.deleteMany( { 'players.id': clientId, players: { $size: 1 } } );
-    console.log(room) */
-    // timer for reconection
-    // set user state to reconnecting
-
-    console.log(socket.rooms)
-    /* const inRoom = await Room.findOne({ 'players.id': clientId, state: { $in: ['onLobby', 'game'] } } );
-    if (inRoom) {
-      if (inRoom.players.length > 1) {
-        // room has multiple players
-      } else {
-        // the last player, reconnection not needed
-      }
-    } else {
-      // not in room?
-    } */
-    // update lobby
-    // set timer
-    // store timer
-  });
+// Pusher settings
+const pusher = new Pusher({
+  appId: process.env.PUSHER_APP_ID,
+  key: process.env.PUSHER_KEY,
+  secret: process.env.PUSHER_SECRET,
+  cluster: process.env.PUSHER_CLUSTER,
+  useTLS: true
 });
+
+app.post("/pusher/auth", (req, res) => {
+  const socketId = req.body.socket_id;
+  const channel = req.body.channel_name;
+  const user_id = req.cookies.cah_uid;
+  const uname = req.cookies.cah_uname;
+  const presenceData = {
+    user_id: user_id,
+    user_info: { uname: uname },
+  };
+  const authResponse = pusher.authorizeChannel(socketId, channel, presenceData);
+  res.send(authResponse);
+});
+
+app.post('/auth', async (req, res) => {
+  try {
+    const id = uuidv4();
+    res.status(201).json({ id: id});
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/create-room', async (req, res) => {
+  try {
+    // gather user id and name
+    const uname = req.body.uname
+    const uid = req.cookies.cah_uid
+    // generate room code
+    const roomPublicId = generateRoomId()
+    // create room on mongodb with player inside
+    const wcards = shuffle(createArrayFromLength(spaWhite.length))
+    const bcards = shuffle(createArrayFromLength(spaBlack.length))
+
+    let newRoom = new Room({
+      publicId: roomPublicId,
+      players: [{id: uid, uName: uname, score: 0, deck: [], state: 'lobby'}],
+      blacks: bcards,
+      whites: wcards,
+      rounds: 25,
+      roomMaster: uid,
+      curRound: 0,
+      state: 'lobby',
+    });
+    newRoom.save()
+      .then(room => {
+        res.status(201).json({ roomid: room._id, roompid: room.publicId });
+      })
+      .catch(err => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal server error' });
+      })
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/join-room', async (req, res) => {
+  //console.log(req)
+  try {
+    // gather user id and name
+    const uname = req.body.uname
+    const roomid = req.body.roomid
+    const uid = req.cookies.cah_uid
+    // search for room
+    // get user on room
+    Room.findOneAndUpdate(
+      { publicId: roomid.toUpperCase() },
+      { $push: { players: {id: uid, uName: uname, score: 0, deck: [], state: 'lobby'} } },
+      { new: true, useFindAndModify: false })
+      .then(room => {
+        res.status(200).json({ roomid: room._id, roompid: room.publicId });
+      })
+      .catch(err => {
+        res.status(500).json({ error: 'Internal server error' });
+      })
+    
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/reconnect', async (req, res) => {
+  const uid = req.cookies.cah_uid
+  try {
+    Room.find({ 'players.id': uid, 'state': { $ne: 'ended' }})
+      .then(rooms => {
+        if (rooms && rooms.length > 0) {
+          const room = rooms[0]
+          switch (room.state) {
+            case 'lobby':
+              res.status(200).json({ reconnecting: true, roomid: room._id, roompid: room.publicId });
+              break;
+            // More responses depending on the state of the room
+            default:
+              // not a valid state (unlikely)
+              res.status(200).json({ reconnecting: false });
+              break;
+          }
+        } else {
+          res.status(200).json({ norooms: true });
+        }
+      })
+      .catch(err => {
+        console.log('Error:', err)
+        res.status(500).json({ error: 'Internal server error' });
+      }) 
+  } catch (err) {
+    console.log('Error:', err)
+    res.status(500).json({ error: 'Internal server error' });
+  }
+  
+});
+
+app.post('/leave-room', async (req, res) => {
+  const uid = req.cookies.cah_uid
+  Room.find({ 'players.id': uid, state: { $ne: 'ended'} })
+    .then(rooms => {
+      for (let i = 0; i < rooms.length; i++) {
+        if (rooms[i].players.length > 1) {
+          // many players
+          const updatedPlayers = rooms[i].players.filter(player => player.id !== uid);
+          rooms[i].players = updatedPlayers;
+          rooms[i].save()
+            .then(() => {
+              res.status(200).json({ left: true, roomid: rooms[i]._id });
+            })
+            .catch(err => {
+              console.log(err)
+              res.status(500).json({ error: 'Internal server error' });
+            });
+        } else {
+          // last player
+          Room.deleteOne({ _id: rooms[i]._id })
+          .then(() => {
+            res.status(200).json({ roomdestroyed: true, roomid: rooms[i]._id });
+          })
+          .catch(err => {
+            console.log('Error deleting room:', err);
+            res.status(500).json({ error: 'Internal server error' });
+          });
+        }
+      }
+    })
+    .catch(err => {
+      console.log(err)
+      res.status(500).json({ error: 'Internal server error' });
+    })
+})
 
 // Connection to mongodb
 mongoose.connect(process.env.MONGODB_CONNECTION_STRING)
   .then((result) => {
     console.log('Connected to db')
-    server.listen(process.env.SERVER_PORT, () => {
+    app.listen(process.env.SERVER_PORT, () => {
       console.log(`Server listening on port '${process.env.SERVER_PORT}'`);
     });
   })

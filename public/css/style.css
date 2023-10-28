@@ -105,6 +105,7 @@ body {
   border: 2px solid var(--main-fg);
   font-size: 1rem;
 }
+
 #card-selection {
   position: fixed;
   bottom: 0;
@@ -157,6 +158,26 @@ body {
 
 #lobby {
   gap: 1rem;
+}
+#lobby .room-title {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+}
+#lobby .room-id-input {
+  padding: 0.3rem 0.3rem;
+  margin: 0 0.3rem;
+  border-radius: 10px;
+  background-color: var(--sec-bg);
+  color: var(--main-fg);
+  border: 2px solid var(--tir-bg);
+  font-size: 1.5rem;
+  font-weight: bold;
+  width: 6rem;
+  text-align: center;
+}
+#lobby .room-id-input:focus {
+  outline: none;
 }
 #lobby .lobby-params {
   display: flex;

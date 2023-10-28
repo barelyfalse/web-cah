@@ -4,6 +4,16 @@ const fview = document.getElementById('face');
 const pview = document.getElementById('prepare');
 const lview = document.getElementById('lobby');
 
+Pusher.logToConsole = true;
+const pusher = new Pusher(
+  "16494569c1a82a4fde64", {
+    cluster: "us2",
+    forceTLS: true,
+    channelAuthorization: { endpoint: "/pusher/auth"}
+  }
+);
+let channel;
+
 var socket;
 var selectionZoneRect;
 var rootFontSize = 16;
@@ -114,7 +124,7 @@ function repositionCards() {
 }
 
 function sendCard(cardIdx) {
-  if (!cards[cardIdx])
+  if (!cards || !cards[cardIdx])
     return
   cards[cardIdx].moveTo(0, -100, 20)
   cards[cardIdx].destroyCard()
@@ -166,7 +176,7 @@ function showFace() {
   }
 }
 
-function showSnackbar(message) {
+function showSnackbar(message, type = 'info') {
   const snackHolder = document.getElementById('snackbar-holder')
   if (snackHolder) {
     const template = document.getElementById('snackbar-template');
@@ -190,112 +200,210 @@ function showSnackbar(message) {
 /**
  * Logic methods
  */
-function initialize() {
-  let clientId = localStorage.getItem('clientId')
 
-  if (!clientId) {
-    socket = io();
-  } else {
-    socket = io({ query: { clientId } });
+function getCookie(cookieName) {
+  const name = cookieName + "=";
+  const decodedCookie = decodeURIComponent(document.cookie);
+  const cookieArray = decodedCookie.split(';');
+
+  for (let i = 0; i < cookieArray.length; i++) {
+    let cookie = cookieArray[i];
+    while (cookie.charAt(0) === ' ') {
+      cookie = cookie.substring(1);
+    }
+    if (cookie.indexOf(name) === 0) {
+      return cookie.substring(name.length, cookie.length);
+    }
   }
+  return null;
+}
 
-  socket.on('connect', () => {
-    socket.on('store-id', (clientId) => {
-      localStorage.setItem('clientId', clientId);
-    });
-    socket.on('show-face', (arg, callback) => {
-      fview.classList.remove('view-move')
-    });
-    socket.on('join-lobby', (arg, callback) => {
-      if(lview) {
-        fview.classList.add('view-move')
-        pview.classList.add('view-move')
-        lview.classList.remove('view-move')
-      }
-    });
-    socket.on("join", (roomId) => {
-      socket.join(roomId);
-      console.log("Socket joined room:", roomId);
-    });
-    socket.on('lobby-update', (arg, callback) => {
-      console.log(arg)
-      if (arg.players && arg.settings) {
-        let playerlist = lview.querySelector('.lobby-list')
-        if (playerlist) {
-          while (playerlist.firstChild) {
-            playerlist.removeChild(playerlist.firstChild);
-          }
-          arg.players.forEach(player => {
-            pl = document.createElement('div')
-            pl.classList.add('lobby-player')
-            player.isMaster?pl.classList.add('lobby-master'):null
-            pl.innerText = player.name
-            playerlist.appendChild(pl)
-          })
-        }
-      }
-      callback();
-    });
-    //fview.classList.remove('view-move')
+function deleteCookie(cookieName) {
+  document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+}
+
+function addLobbyPlayer(listEl, id, name, isMaster=false) {
+  pl = document.createElement('div')
+  pl.classList.add('lobby-player')
+  pl.id = id;
+  isMaster?pl.classList.add('lobby-master'):null
+  pl.innerText = name
+  listEl.appendChild(pl)
+}
+
+function deleteLobbyPlayer(id) {
+  const el = document.getElementById(id);
+  if (el)
+    el.parentNode.removeChild(el);
+}
+
+function setChannel(channelName, id) {
+  channel = pusher.subscribe("presence-" + id);
+  let playerlist = lview.querySelector('.lobby-list')
+  channel.bind("pusher:subscription_succeeded", (members) => {
+    document.getElementById('roomid_input')?document.getElementById('roomid_input').value=channelName:null
+    if(lview) {
+      fview.classList.add('view-move')
+      pview.classList.add('view-move')
+      lview.classList.remove('view-move')
+    }
+    while (playerlist.firstChild) {
+      playerlist.removeChild(playerlist.firstChild);
+    }
+    members.each((member) => {
+      addLobbyPlayer(playerlist, member.id, member.info.uname, member.info.ismaster)
+    })
+    showSnackbar('Joined room ' + channelName)
+  });
+  channel.bind("pusher:member_added", (member) => {
+    addLobbyPlayer(playerlist, member.id, member.info.uname, member.info.ismaster)
+    showSnackbar(member.info.uname + ' joined')
+  });
+  channel.bind("pusher:member_removed", (member) => {
+    deleteLobbyPlayer(member.id)
+    showSnackbar(member.info.uname + ' leave')
   });
 }
 
-function joinCreate() {
+async function initialize() {
+  //first time?
+  if (!document.cookie.match("(^|;) ?cah_uid=([^;]*)(;|$)")) {
+    try {
+      const response = await fetch('/auth', { method: 'POST' });
+      if (response.ok) {
+        const data = await response.json();
+        document.cookie = "cah_uid=" + data.id;
+        fview.classList.remove('view-move')
+      } else {
+        console.error('Retrive error:', response.status);
+      }
+    } catch (error) {
+      showSnackbar("Auth error")
+      console.error('Auth fail:', error);
+      return
+    }
+  } else {
+    // reconecting?
+    // reconection process?
+    try {
+      let clientId = getCookie('cah_uid')
+      const res = await fetch('/reconnect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: clientId }),
+      });
+      if (res.ok) {
+        const data = await res.json()
+        if (data.reconnecting) {
+          setChannel(data.roompid, data.roomid)
+        }
+        if (data.norooms) {
+          fview.classList.remove('view-move')
+        }
+      } else {
+        console.error('Retrive error:', res.status);
+      }
+    } catch (err) {
+      showSnackbar("Reconnection error")
+      console.error('Auth fail:', err);
+      return
+    }
+  }
+}
+
+
+
+
+async function joinCreate() {
   const unamerx = /^[a-zA-Z0-9 !@#$%^&*()_+\[\]:,.?~\\/-]{1,25}$/;
   const roomidrgx = /^[A-Z0-9]{5}$/; 
-  let clientId = localStorage.getItem('clientId')
-
+  let clientId = getCookie('cah_uid')
   if(!clientId)
     return
 
   if (joining) {
-    //join logic
     const roomidtxt = document.getElementById('roomid')
     const unametxt = document.getElementById('uname')
-    if(socket.connected) {
-      if (unametxt && unamerx.test(unametxt.value.trim()) && roomidtxt && roomidrgx.test(roomidtxt.value.trim().toUpperCase())) {
-        socket.emit('join-room', {uname: unametxt.value.trim(), publicId: roomidtxt.value.trim().toUpperCase()}, (res) => {
-          if (res.status === 'OK') {
-            showSnackbar("Joined")
-          } else if (res.status === 'Error') {
-            showSnackbar(res.msg)
-          }
-        });
+    if (!unametxt || !unamerx.test(unametxt.value.trim()) || !roomidtxt || !roomidrgx.test(roomidtxt.value.trim().toUpperCase()))
+      return
+    
+    try {
+      document.cookie = "cah_uname=" + unametxt.value.trim();
+      const res = await fetch('/join-room', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uname: unametxt.value.trim(), roomid: roomidtxt.value.trim().toUpperCase() }),
+      });
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
       } else {
-        showSnackbar("Invalid username or room ID")
+        setChannel(data.roompid, data.roomid)
       }
-    } else {
-      showSnackbar("An error ocurred")
+    } catch (error) {
+      console.error('Error:', error);
     }
   } else {
+    // creating
+    console.log('trying to create room')
     const unametxt = document.getElementById('uname')
-    if(socket.connected) {
-      if (unametxt && unamerx.test(unametxt.value.trim())) {
-        socket.emit('create-room', unametxt.value.trim(), (res) => {
-          if (res.status === 'OK') {
-            showSnackbar("Room created")
-          }
-        });
+    if (!unametxt || !unamerx.test(unametxt.value.trim()))
+      return
+    try {
+      document.cookie = "cah_uname=" + unametxt.value.trim();
+
+      const res = await fetch('/create-room', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uname: unametxt.value.trim() }),
+      });
+  
+      if (!res.ok) {
+        showSnackbar('Room creation error')
+        throw new Error(`HTTP error! status: ${res.status}`);
       } else {
-        showSnackbar("Invalid username")
+        showSnackbar('Room created')
       }
-    } else {
-      showSnackbar("An error ocurred")
+  
+      const data = await res.json();
+
+      if (data.roomid) {
+        setChannel(data.roompid, data.roomid)
+      } else {
+        console.error('Error');
+      }
+    } catch (error) {
+      console.error('Error:', error);
     }
   }
 }
 
-function leaveRoom() {
-  socket.emit('leave-room', {}, (res) => {
-    if (res.status === 'OK') {
-      showSnackbar('Room left')
+async function leaveRoom() {
+  try {
+    const res = await fetch('/leave-room', { method: 'POST' });
+    if (!res.ok) {
+      showSnackbar('You can not leave')
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+
+    const data = await res.json();
+
+    if(data.roomid) {
+      pusher.unsubscribe('presence-'+data.roomid)
+      deleteCookie('cah_uid')
       fview.classList.remove('view-move')
       pview.classList.add('view-move')
       lview.classList.add('view-move')
-    } else {
-      showSnackbar("An error ocurred")
     }
-  })
+    if (data.left) {
+      showSnackbar('Room left')
+    }
+    if (data.roomdestroyed) {
+      showSnackbar('Room destroyed')
+    }
+  } catch (error) {
+    console.error('Error:', error);
+  }
 }
 
 initialize();

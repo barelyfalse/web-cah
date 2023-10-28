@@ -9,6 +9,7 @@
   <script src="js/classes/Card.js"></script>
   <script src="js/cards.js"></script>
   <script defer src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
   <script defer src="js/index.js"></script>
   <script defer src="js/eventListeners.js"></script>
   <title>CaH</title>
@@ -27,7 +28,10 @@
   </template>
   <div id="full-overlay">
     <div id="lobby" class="view view-move">
-      <h2>Lobby</h2>
+      <div class="room-title">
+        <h2>Lobby</h2>
+        <input type="input" id="roomid_input" class="room-id-input" readonly>
+      </div>
       <div class="lobby-params">
         <div class="lobby-list">
           <div class="lobby-player lobby-master">Player</div>

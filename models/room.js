@@ -18,6 +18,9 @@ const roomSchema = new Schema({
   rounds: { 
     type: Number,
     required: false },
+  roomMaster: {
+    type: String,
+    required: true },
   curRound: { 
     type: Number, 
     required: true },

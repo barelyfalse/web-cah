@@ -47,21 +47,45 @@ app.post("/pusher/auth", (req, res) => {
   res.send(authResponse);
 });
 
-app.post('/auth', async (req, res) => {
+app.post('/token', async (req, res) => {
   try {
     const id = uuidv4();
-    res.status(201).json({ id: id});
+    res.status(200).json({
+      success: true,
+      data: {
+        id: id
+      },
+      error: null
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({
+      success: false,
+      data: null,
+      error: {
+        detail: 'Internal server error',
+        message: 'An error ocurred'
+      }
+    });
   }
 });
 
 app.post('/create-room', async (req, res) => {
   try {
+    const unamerx = /^[a-zA-Z0-9 !@#$%^&*()_+\[\]:,.?~\\/-]{1,25}$/;
     // gather user id and name
     const uname = req.body.uname
     const uid = req.cookies.cah_uid
+    // test usename
+    if (!unamerx.test(uname)) {
+      res.status(422).json({
+        success: false,
+        data: null,
+        error: {
+          message: 'Invalid username'
+        }
+      })
+    }
     // generate room code
     const roomPublicId = generateRoomId()
     // create room on mongodb with player inside
@@ -80,41 +104,94 @@ app.post('/create-room', async (req, res) => {
     });
     newRoom.save()
       .then(room => {
-        res.status(201).json({ roomid: room._id, roompid: room.publicId });
+        res.status(201).json({
+          success: true,
+          data: {
+            roomId: room._id, 
+            roomPId: room.publicId,
+            masterId: room.roomMaster
+          },
+          error: null
+        });
       })
       .catch(err => {
         console.error(err);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+          success: false,
+          data: null,
+          error: {
+            detail: 'Internal server error',
+            message: 'An error ocurred'
+          }
+        });
       })
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({
+      success: false,
+      data: null,
+      error: {
+        detail: 'Internal server error',
+        message: 'An error ocurred'
+      }
+    });
   }
 });
 
 app.post('/join-room', async (req, res) => {
   //console.log(req)
   try {
+    const unamerx = /^[a-zA-Z0-9 !@#$%^&*()_+\[\]:,.?~\\/-]{1,25}$/;
     // gather user id and name
     const uname = req.body.uname
     const roomid = req.body.roomid
     const uid = req.cookies.cah_uid
+    // test username
+    if (!unamerx.test(uname)) {
+      res.status(422).json({
+        success: false,
+        data: null,
+        error: {
+          message: 'Invalid username'
+        }
+      })
+    }
     // search for room
-    // get user on room
     Room.findOneAndUpdate(
       { publicId: roomid.toUpperCase() },
       { $push: { players: {id: uid, uName: uname, score: 0, deck: [], state: 'lobby'} } },
       { new: true, useFindAndModify: false })
       .then(room => {
-        res.status(200).json({ roomid: room._id, roompid: room.publicId });
+        res.status(200).json({
+          success: true,
+          data: {
+            roomId: room._id, 
+            roomPId: room.publicId,
+            masterId: room.roomMaster
+          },
+          error: null
+        });
       })
       .catch(err => {
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+          success: false,
+          data: null,
+          error: {
+            detail: 'Internal server error',
+            message: 'An error ocurred'
+          }
+        });
       })
-    
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({
+      success: false,
+      data: null,
+      error: {
+        detail: 'Internal server error',
+        message: 'An error ocurred'
+      }
+    });
   }
 });
 
@@ -127,25 +204,62 @@ app.post('/reconnect', async (req, res) => {
           const room = rooms[0]
           switch (room.state) {
             case 'lobby':
-              res.status(200).json({ reconnecting: true, roomid: room._id, roompid: room.publicId });
+              res.status(200).json({
+                success: true,
+                data: {
+                  reconnecting: true,
+                  roomId: room._id,
+                  roomPId: room.publicId,
+                  masterId: room.roomMaster
+                },
+                error: null
+              });
               break;
             // More responses depending on the state of the room
             default:
               // not a valid state (unlikely)
-              res.status(200).json({ reconnecting: false });
+              res.status(200).json({
+                success: true,
+                data: {
+                  reconnecting: false,
+                  message: 'Invalid state'
+                },
+                error: null
+              });
               break;
           }
         } else {
-          res.status(200).json({ norooms: true });
+          res.status(200).json({
+            success: true,
+            data: {
+              reconnecting: false,
+              noRooms: true
+            },
+            error: null
+          });
         }
       })
       .catch(err => {
         console.log('Error:', err)
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+          success: false,
+          data: null,
+          error: {
+            message: 'An error ocurred',
+            detail: 'Internal server error'
+          }
+        });
       }) 
   } catch (err) {
     console.log('Error:', err)
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({
+      success: false,
+      data: null,
+      error: {
+        message: 'An error ocurred',
+        detail: 'Internal server error'
+      }
+    });
   }
   
 });
@@ -161,28 +275,63 @@ app.post('/leave-room', async (req, res) => {
           rooms[i].players = updatedPlayers;
           rooms[i].save()
             .then(() => {
-              res.status(200).json({ left: true, roomid: rooms[i]._id });
+              res.status(200).json({
+                success: true,
+                data: {
+                  left: true,
+                  roomId: rooms[i]._id,
+                },
+                error: null
+              });
             })
             .catch(err => {
               console.log(err)
-              res.status(500).json({ error: 'Internal server error' });
+              res.status(500).json({
+                success: false,
+                data: null,
+                error: {
+                  message: 'An error ocurred',
+                  detail: 'Internal server error'
+                }
+              });
             });
         } else {
           // last player
           Room.deleteOne({ _id: rooms[i]._id })
           .then(() => {
-            res.status(200).json({ roomdestroyed: true, roomid: rooms[i]._id });
+            res.status(200).json({
+              success: true,
+              data: {
+                roomDestroyed: true,
+                roomId: rooms[i]._id,
+              },
+              error: null
+            });
           })
           .catch(err => {
             console.log('Error deleting room:', err);
-            res.status(500).json({ error: 'Internal server error' });
+            res.status(500).json({
+              success: false,
+              data: null,
+              error: {
+                message: 'An error ocurred',
+                detail: 'Internal server error'
+              }
+            });
           });
         }
       }
     })
     .catch(err => {
       console.log(err)
-      res.status(500).json({ error: 'Internal server error' });
+      res.status(500).json({
+        success: false,
+        data: null,
+        error: {
+          message: 'An error ocurred',
+          detail: 'Internal server error'
+        }
+      });
     })
 })
 

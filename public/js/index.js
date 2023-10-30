@@ -4,7 +4,7 @@ const fview = document.getElementById('face');
 const pview = document.getElementById('prepare');
 const lview = document.getElementById('lobby');
 
-Pusher.logToConsole = true;
+//Pusher.logToConsole = true;
 const pusher = new Pusher(
   "16494569c1a82a4fde64", {
     cluster: "us2",
@@ -13,8 +13,6 @@ const pusher = new Pusher(
   }
 );
 let channel;
-
-var socket;
 var selectionZoneRect;
 var rootFontSize = 16;
 var selectionInt = null;
@@ -22,6 +20,7 @@ var cards;
 var pointer = {first: {}, last: {}};
 const isTouchSupported = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0;
 var joining = true;
+let master = false;
 
 function setSelectionZoneWidth() {
   rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
@@ -141,9 +140,6 @@ function getCard() {
   repositionCards();
 }
 
-/* setSelectionZoneWidth()
-spawnCards() */
-
 /**
  * Views methods
  */
@@ -198,9 +194,8 @@ function showSnackbar(message, type = 'info') {
 }
 
 /**
- * Logic methods
+ * Utilities
  */
-
 function getCookie(cookieName) {
   const name = cookieName + "=";
   const decodedCookie = decodeURIComponent(document.cookie);
@@ -237,9 +232,13 @@ function deleteLobbyPlayer(id) {
     el.parentNode.removeChild(el);
 }
 
-function setChannel(channelName, id) {
+/**
+ * Logic methods
+ */
+function setChannel(channelName, id, masterId) {
   channel = pusher.subscribe("presence-" + id);
   let playerlist = lview.querySelector('.lobby-list')
+  document.cookie = "cah_masterid=" + masterId
   channel.bind("pusher:subscription_succeeded", (members) => {
     document.getElementById('roomid_input')?document.getElementById('roomid_input').value=channelName:null
     if(lview) {
@@ -251,12 +250,12 @@ function setChannel(channelName, id) {
       playerlist.removeChild(playerlist.firstChild);
     }
     members.each((member) => {
-      addLobbyPlayer(playerlist, member.id, member.info.uname, member.info.ismaster)
+      addLobbyPlayer(playerlist, member.id, member.info.uname, masterId == member.id)
     })
     showSnackbar('Joined room ' + channelName)
   });
   channel.bind("pusher:member_added", (member) => {
-    addLobbyPlayer(playerlist, member.id, member.info.uname, member.info.ismaster)
+    addLobbyPlayer(playerlist, member.id, member.info.uname, masterId == member.id)
     showSnackbar(member.info.uname + ' joined')
   });
   channel.bind("pusher:member_removed", (member) => {
@@ -266,53 +265,47 @@ function setChannel(channelName, id) {
 }
 
 async function initialize() {
-  //first time?
   if (!document.cookie.match("(^|;) ?cah_uid=([^;]*)(;|$)")) {
     try {
-      const response = await fetch('/auth', { method: 'POST' });
-      if (response.ok) {
-        const data = await response.json();
-        document.cookie = "cah_uid=" + data.id;
+      const response = await fetch('/token', { method: 'POST' });
+      const res = await response.json()
+      if (res.success) {
+        document.cookie = "cah_uid=" + res.data.id
         fview.classList.remove('view-move')
       } else {
-        console.error('Retrive error:', response.status);
+        if (res.error.message)
+          showSnackbar(res.error.message)
+        throw new Error(`Error! Status: ${response.status}, Details: ${JSON.stringify(res.error)}`)
       }
     } catch (error) {
-      showSnackbar("Auth error")
-      console.error('Auth fail:', error);
-      return
+      console.error('Tokenization fail:', error);
     }
   } else {
-    // reconecting?
-    // reconection process?
     try {
       let clientId = getCookie('cah_uid')
-      const res = await fetch('/reconnect', {
+      const response = await fetch('/reconnect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ uid: clientId }),
       });
-      if (res.ok) {
-        const data = await res.json()
-        if (data.reconnecting) {
-          setChannel(data.roompid, data.roomid)
+      const res = await response.json()
+      if (res.success) {
+        if (res.data.reconnecting) {
+          setChannel(res.data.roomPId, res.data.roomId, res.data.masterId)
         }
-        if (data.norooms) {
+        if (res.data.noRooms) {
           fview.classList.remove('view-move')
         }
       } else {
-        console.error('Retrive error:', res.status);
+        if (res.error.message)
+          showSnackbar(res.error.message)
+        throw new Error(`Error! Status: ${response.status}, Details: ${JSON.stringify(res.error)}`)
       }
-    } catch (err) {
-      showSnackbar("Reconnection error")
-      console.error('Auth fail:', err);
-      return
+    } catch (error) {
+      console.error('Reconnection fail:', error);
     }
   }
 }
-
-
-
 
 async function joinCreate() {
   const unamerx = /^[a-zA-Z0-9 !@#$%^&*()_+\[\]:,.?~\\/-]{1,25}$/;
@@ -326,83 +319,80 @@ async function joinCreate() {
     const unametxt = document.getElementById('uname')
     if (!unametxt || !unamerx.test(unametxt.value.trim()) || !roomidtxt || !roomidrgx.test(roomidtxt.value.trim().toUpperCase()))
       return
-    
     try {
       document.cookie = "cah_uname=" + unametxt.value.trim();
-      const res = await fetch('/join-room', {
+      const response = await fetch('/join-room', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ uname: unametxt.value.trim(), roomid: roomidtxt.value.trim().toUpperCase() }),
       });
-      const data = await res.json()
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
+      const res = await response.json()
+      if (res.success) {
+        setChannel(res.data.roomPId, res.data.roomId, res.data.masterId)
       } else {
-        setChannel(data.roompid, data.roomid)
+        if (res.error.message)
+          showSnackbar(res.error.message)
+        throw new Error(`Creation error! Status: ${response.status}, Details: ${JSON.stringify(res.error)}`)
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Join error:', error);
     }
   } else {
-    // creating
-    console.log('trying to create room')
+    // Creating room
     const unametxt = document.getElementById('uname')
     if (!unametxt || !unamerx.test(unametxt.value.trim()))
       return
     try {
       document.cookie = "cah_uname=" + unametxt.value.trim();
 
-      const res = await fetch('/create-room', {
+      const response = await fetch('/create-room', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ uname: unametxt.value.trim() }),
       });
-  
-      if (!res.ok) {
-        showSnackbar('Room creation error')
-        throw new Error(`HTTP error! status: ${res.status}`);
-      } else {
-        showSnackbar('Room created')
-      }
-  
-      const data = await res.json();
 
-      if (data.roomid) {
-        setChannel(data.roompid, data.roomid)
+      const res = await response.json()
+
+      if (res.success) {
+        showSnackbar('Room created')
+        setChannel(res.data.roomPId, res.data.roomId, res.data.masterId)
       } else {
-        console.error('Error');
+        if (res.error.message)
+          showSnackbar(res.error.message)
+        throw new Error(`Creation error! Status: ${response.status}, Details: ${JSON.stringify(res.error)}`)
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Room creation error:', error);
     }
   }
 }
 
 async function leaveRoom() {
   try {
-    const res = await fetch('/leave-room', { method: 'POST' });
-    if (!res.ok) {
-      showSnackbar('You can not leave')
-      throw new Error(`HTTP error! status: ${res.status}`);
-    }
+    const response = await fetch('/leave-room', { method: 'POST' });
 
-    const data = await res.json();
+    const res = await response.json()
+    if (res.success) {
+      pusher.unsubscribe('presence-' + res.data.roomid)
+      deleteCookie('cah_masterid')
 
-    if(data.roomid) {
-      pusher.unsubscribe('presence-'+data.roomid)
-      deleteCookie('cah_uid')
+      if (res.data.left) {
+        showSnackbar('Room left')
+      }
+      if (res.data.roomDestroyed) {
+        showSnackbar('Room destroyed')
+      }
+
       fview.classList.remove('view-move')
       pview.classList.add('view-move')
       lview.classList.add('view-move')
-    }
-    if (data.left) {
-      showSnackbar('Room left')
-    }
-    if (data.roomdestroyed) {
-      showSnackbar('Room destroyed')
+    } else {
+      if (res.error.message)
+        showSnackbar(res.error.message)
+      throw new Error(`Creation error! Status: ${response.status}, Details: ${JSON.stringify(res.error)}`)
     }
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error leaving:', error);
   }
 }
 

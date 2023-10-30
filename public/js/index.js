@@ -267,15 +267,15 @@ function setChannel(channelName, id, masterId) {
     members.each((member) => {
       addLobbyPlayer(playerlist, member.id, member.info.uname, masterId == member.id)
     })
-    showSnackbar('Joined room ' + channelName)
+    showSnackbar('Joined room ' + channelName, 'info')
   });
   channel.bind("pusher:member_added", (member) => {
     addLobbyPlayer(playerlist, member.id, member.info.uname, masterId == member.id)
-    showSnackbar(member.info.uname + ' joined')
+    showSnackbar(member.info.uname + ' joined', 'info')
   });
   channel.bind("pusher:member_removed", (member) => {
     deleteLobbyPlayer(member.id)
-    showSnackbar(member.info.uname + ' leave')
+    showSnackbar(member.info.uname + ' leave', 'info')
   });
 }
 
@@ -289,7 +289,7 @@ async function initialize() {
         fview.classList.remove('view-move')
       } else {
         if (res.error.message)
-          showSnackbar(res.error.message)
+          showSnackbar(res.error.message, 'error')
         throw new Error(`Error! Status: ${response.status}, Details: ${JSON.stringify(res.error)}`)
       }
     } catch (error) {
@@ -313,7 +313,7 @@ async function initialize() {
         }
       } else {
         if (res.error.message)
-          showSnackbar(res.error.message)
+          showSnackbar(res.error.message, 'error')
         throw new Error(`Error! Status: ${response.status}, Details: ${JSON.stringify(res.error)}`)
       }
     } catch (error) {
@@ -350,7 +350,7 @@ async function joinCreate() {
         setChannel(res.data.roomPId, res.data.roomId, res.data.masterId)
       } else {
         if (res.error.message)
-          showSnackbar(res.error.message)
+          showSnackbar(res.error.message, 'error')
         throw new Error(`Creation error! Status: ${response.status}, Details: ${JSON.stringify(res.error)}`)
       }
     } catch (error) {
@@ -373,11 +373,11 @@ async function joinCreate() {
       const res = await response.json()
 
       if (res.success) {
-        showSnackbar('Room created')
+        showSnackbar('Room created', 'success')
         setChannel(res.data.roomPId, res.data.roomId, res.data.masterId)
       } else {
         if (res.error.message)
-          showSnackbar(res.error.message)
+          showSnackbar(res.error.message, 'error')
         throw new Error(`Creation error! Status: ${response.status}, Details: ${JSON.stringify(res.error)}`)
       }
     } catch (error) {
@@ -396,10 +396,10 @@ async function leaveRoom() {
       deleteCookie('cah_masterid')
 
       if (res.data.left) {
-        showSnackbar('Room left')
+        showSnackbar('Room left', 'success')
       }
       if (res.data.roomDestroyed) {
-        showSnackbar('Room destroyed')
+        showSnackbar('Room destroyed', 'success')
       }
 
       fview.classList.remove('view-move')
@@ -407,7 +407,7 @@ async function leaveRoom() {
       lview.classList.add('view-move')
     } else {
       if (res.error.message)
-        showSnackbar(res.error.message)
+        showSnackbar(res.error.message, 'error')
       throw new Error(`Creation error! Status: ${response.status}, Details: ${JSON.stringify(res.error)}`)
     }
   } catch (error) {

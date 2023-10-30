@@ -5,6 +5,12 @@
   --main-fg: rgb(226, 226, 226);
   --constrast-fg: white;
   --muted-fg: rgb(185, 185, 185);
+  --success: rgb(0, 90, 0);
+  --success-muted: rgb(0, 29, 0);
+  --caution: rgb(235, 152, 0);
+  --caution-muted: rgb(46, 30, 0);
+  --error-muted: rgb(41, 0, 0);
+  --error: rgb(202, 0, 0);
 }
 
 * {
@@ -155,6 +161,30 @@ body {
   opacity: 1;
   transition: opacity 250ms ease-in;
 }
+.snack+.success {
+  background-color: var(--success-muted);
+}
+.snack+.caution {
+  background-color: var(--caution-muted);
+}
+.snack+.error {
+  background-color: var(--error-muted);
+}
+.snack+.success .snack-icon {
+  color: var(--success);
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+.snack+.caution .snack-icon {
+  color: var(--caution);
+  font-weight: bold;
+}
+.snack+.error .snack-icon {
+  color: var(--error);
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
 
 #lobby {
   gap: 1rem;

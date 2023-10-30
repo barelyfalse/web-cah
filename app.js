@@ -333,7 +333,7 @@ app.post('/leave-room', async (req, res) => {
         }
       });
     })
-})
+});
 
 // Connection to mongodb
 mongoose.connect(process.env.MONGODB_CONNECTION_STRING)

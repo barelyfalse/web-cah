@@ -33,7 +33,6 @@ function setSelectionZoneWidth() {
 /*
  * CONTROL
  */
-
 function handleTouchTapStart(event) {
   pointer.first.x = event.touches[0].clientX;
   pointer.first.y = event.touches[0].clientY;
@@ -100,7 +99,6 @@ function handleDocumentTap(event) {
 /**
  * GAME
  */
-
 function spawnCards() {
   cards = new Array();
   for (let i = 0; i < 10; i++) {
@@ -178,7 +176,24 @@ function showSnackbar(message, type = 'info') {
     const template = document.getElementById('snackbar-template');
     const snack = template.content.cloneNode(true).firstElementChild;
     if (snack) {
-      snack.querySelector('.snack-text')?snack.querySelector('.snack-text').innerText = message:null
+      snack.querySelector('.snack-text').innerText = message
+      snack.classList.add(type)
+      switch (type) {
+        case 'info':
+          snack.querySelector('.snack-icon').innerHTML = '&#8505'
+          break;
+        case 'success':
+          snack.querySelector('.snack-icon').innerHTML = '&#10004'
+          break;
+        case 'caution':
+          snack.querySelector('.snack-icon').innerHTML = '&#33'
+          break;
+        case 'error':
+          snack.querySelector('.snack-icon').innerHTML = '&#10008'
+          break;
+        default:
+          break;
+      }
       snackHolder.appendChild(snack)
       setTimeout(function () {
         snack.classList.add('snack-active');
@@ -317,8 +332,12 @@ async function joinCreate() {
   if (joining) {
     const roomidtxt = document.getElementById('roomid')
     const unametxt = document.getElementById('uname')
-    if (!unametxt || !unamerx.test(unametxt.value.trim()) || !roomidtxt || !roomidrgx.test(roomidtxt.value.trim().toUpperCase()))
+    if (!unametxt || !unamerx.test(unametxt.value.trim()) || !roomidtxt || !roomidrgx.test(roomidtxt.value.trim().toUpperCase())) {
+      if (unamerx.test(unametxt.value.trim())) {
+        showSnackbar('Invalid name', 'error')
+      }
       return
+    }
     try {
       document.cookie = "cah_uname=" + unametxt.value.trim();
       const response = await fetch('/join-room', {

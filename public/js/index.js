@@ -170,6 +170,14 @@ function showFace() {
   }
 }
 
+function lobbyView() {
+  if (lview) {
+    fview.classList.add('view-move')
+    pview.classList.add('view-move')
+    lview.classList.remove('view-move')
+  }
+}
+
 function showSnackbar(message, type = 'info') {
   const snackHolder = document.getElementById('snackbar-holder')
   if (snackHolder) {
@@ -256,17 +264,15 @@ function setChannel(channelName, id, masterId) {
   document.cookie = "cah_masterid=" + masterId
   channel.bind("pusher:subscription_succeeded", (members) => {
     document.getElementById('roomid_input')?document.getElementById('roomid_input').value=channelName:null
-    if(lview) {
-      fview.classList.add('view-move')
-      pview.classList.add('view-move')
-      lview.classList.remove('view-move')
-    }
+    if (members.me.id == masterId)
+      document.getElementById('game-start-btn')?document.getElementById('game-start-btn').style.display = 'flex':null
     while (playerlist.firstChild) {
       playerlist.removeChild(playerlist.firstChild);
     }
     members.each((member) => {
       addLobbyPlayer(playerlist, member.id, member.info.uname, masterId == member.id)
     })
+    lobbyView()
     showSnackbar('Joined room ' + channelName, 'info')
   });
   channel.bind("pusher:member_added", (member) => {
@@ -392,7 +398,7 @@ async function leaveRoom() {
 
     const res = await response.json()
     if (res.success) {
-      pusher.unsubscribe('presence-' + res.data.roomid)
+      pusher.unsubscribe('presence-' + res.data.roomId)
       deleteCookie('cah_masterid')
 
       if (res.data.left) {

@@ -206,12 +206,7 @@ function showSnackbar(message, type = 'info') {
       setTimeout(function () {
         snack.classList.add('snack-active');
       }, 10);
-      setTimeout(function () {
-        snack.classList.remove('snack-active');
-        snack.addEventListener('transitionend', () => {
-          snackHolder.removeChild(snack);
-        });
-      }, 3000);
+      
     }
   }
 }
@@ -261,7 +256,7 @@ function deleteLobbyPlayer(id) {
 function setChannel(channelName, id, masterId) {
   channel = pusher.subscribe("presence-" + id);
   let playerlist = lview.querySelector('.lobby-list')
-  document.cookie = "cah_masterid=" + masterId
+  document.cookie = "cah_mid=" + masterId
   channel.bind("pusher:subscription_succeeded", (members) => {
     document.getElementById('roomid_input')?document.getElementById('roomid_input').value=channelName:null
     if (members.me.id == masterId)
@@ -399,7 +394,7 @@ async function leaveRoom() {
     const res = await response.json()
     if (res.success) {
       pusher.unsubscribe('presence-' + res.data.roomId)
-      deleteCookie('cah_masterid')
+      deleteCookie('cah_mid')
 
       if (res.data.left) {
         showSnackbar('Room left', 'success')

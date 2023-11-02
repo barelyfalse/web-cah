@@ -9,8 +9,8 @@
   --success-muted: rgb(0, 29, 0);
   --caution: rgb(235, 152, 0);
   --caution-muted: rgb(46, 30, 0);
-  --error-muted: rgb(41, 0, 0);
   --error: rgb(202, 0, 0);
+  --error-muted: rgb(41, 0, 0);
 }
 
 * {
@@ -245,6 +245,11 @@ body {
 }
 #lobby .lobby-settings {
   padding: 0.4rem 1rem;
+}
+#lobby .lobby-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
 }
 
 .card-wrapper {

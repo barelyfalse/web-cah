@@ -37,10 +37,14 @@
         </div>
         <div class="lobby-settings">
           <strong>Lobby params</strong>
-          <div class="lobby-setting">Rounds: 25</div>
+          <div class="lobby-setting">Rounds: 30</div>
         </div>
       </div>
-      <button class="btn btn-primary" onclick="leaveRoom()">Leave room</button>
+      <div class="lobby-actions">
+        <button class="btn btn-primary" onclick="leaveRoom()">Leave room</button>
+        <button id="game-start-btn" class="btn btn-primary" onclick="startGame()" style="display: none;"">Start game</button>
+      </div>
+      
     </div>
     <div id="prepare" class="view view-move">
       <div class="back-holder"><button class="btn btn-outlined" onclick="showFace()">&lt; Back</button></div>

@@ -161,25 +161,25 @@ body {
   opacity: 1;
   transition: opacity 250ms ease-in;
 }
-.snack+.success {
+.snack.success {
   background-color: var(--success-muted);
 }
-.snack+.caution {
+.snack.caution {
   background-color: var(--caution-muted);
 }
-.snack+.error {
+.snack.error {
   background-color: var(--error-muted);
 }
-.snack+.success .snack-icon {
+.snack.success .snack-icon {
   color: var(--success);
   font-size: 0.75rem;
   font-weight: bold;
 }
-.snack+.caution .snack-icon {
+.snack.caution .snack-icon {
   color: var(--caution);
   font-weight: bold;
 }
-.snack+.error .snack-icon {
+.snack.error .snack-icon {
   color: var(--error);
   font-size: 0.75rem;
   font-weight: bold;

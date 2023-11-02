@@ -206,7 +206,12 @@ function showSnackbar(message, type = 'info') {
       setTimeout(function () {
         snack.classList.add('snack-active');
       }, 10);
-      
+      setTimeout(function () {
+        snack.classList.remove('snack-active');
+        snack.addEventListener('transitionend', () => {
+          snackHolder.removeChild(snack);
+        });
+      }, 3000);
     }
   }
 }

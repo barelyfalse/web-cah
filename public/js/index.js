@@ -258,10 +258,10 @@ function deleteLobbyPlayer(id) {
 /**
  * Logic methods
  */
-function setChannel(channelName, id, masterId) {
+function setChannel(channelName, id) {
   channel = pusher.subscribe("presence-" + id);
+  const masterId = getCookie('cah_mid')
   let playerlist = lview.querySelector('.lobby-list')
-  document.cookie = "cah_mid=" + masterId
   channel.bind("pusher:subscription_succeeded", (members) => {
     document.getElementById('roomid_input')?document.getElementById('roomid_input').value=channelName:null
     if (members.me.id == masterId)
@@ -291,7 +291,6 @@ async function initialize() {
       const response = await fetch('/token', { method: 'POST' });
       const res = await response.json()
       if (res.success) {
-        document.cookie = "cah_uid=" + res.data.id
         fview.classList.remove('view-move')
       } else {
         if (res.error.message)
@@ -303,20 +302,17 @@ async function initialize() {
     }
   } else {
     try {
-      let clientId = getCookie('cah_uid')
-      const response = await fetch('/reconnect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid: clientId }),
-      });
+      const response = await fetch('/reconnect', { method: 'POST' });
       const res = await response.json()
       if (res.success) {
         if (res.data.reconnecting) {
-          setChannel(res.data.roomPId, res.data.roomId, res.data.masterId)
+          setChannel(res.data.roomPId, res.data.roomId)
+        } else {
+          if (res.data.message)
+            showSnackbar(res.data.message, 'caution')
         }
-        if (res.data.noRooms) {
+        if (res.data.noRooms)
           fview.classList.remove('view-move')
-        }
       } else {
         if (res.error.message)
           showSnackbar(res.error.message, 'error')
@@ -342,10 +338,10 @@ async function joinCreate() {
       if (unamerx.test(unametxt.value.trim())) {
         showSnackbar('Invalid name', 'error')
       }
+      // add room id error snackbar
       return
     }
     try {
-      document.cookie = "cah_uname=" + unametxt.value.trim();
       const response = await fetch('/join-room', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -353,11 +349,11 @@ async function joinCreate() {
       });
       const res = await response.json()
       if (res.success) {
-        setChannel(res.data.roomPId, res.data.roomId, res.data.masterId)
+        setChannel(res.data.roomPId, res.data.roomId)
       } else {
         if (res.error.message)
           showSnackbar(res.error.message, 'error')
-        throw new Error(`Creation error! Status: ${response.status}, Details: ${JSON.stringify(res.error)}`)
+        throw new Error(`Joining error! Status: ${response.status}, Details: ${JSON.stringify(res.error)}`)
       }
     } catch (error) {
       console.error('Join error:', error);
@@ -368,8 +364,6 @@ async function joinCreate() {
     if (!unametxt || !unamerx.test(unametxt.value.trim()))
       return
     try {
-      document.cookie = "cah_uname=" + unametxt.value.trim();
-
       const response = await fetch('/create-room', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -380,7 +374,7 @@ async function joinCreate() {
 
       if (res.success) {
         showSnackbar('Room created', 'success')
-        setChannel(res.data.roomPId, res.data.roomId, res.data.masterId)
+        setChannel(res.data.roomPId, res.data.roomId)
       } else {
         if (res.error.message)
           showSnackbar(res.error.message, 'error')
@@ -399,7 +393,6 @@ async function leaveRoom() {
     const res = await response.json()
     if (res.success) {
       pusher.unsubscribe('presence-' + res.data.roomId)
-      deleteCookie('cah_mid')
 
       if (res.data.left) {
         showSnackbar('Room left', 'success')
@@ -418,6 +411,20 @@ async function leaveRoom() {
     }
   } catch (error) {
     console.error('Error leaving:', error);
+  }
+}
+
+async function startGame() {
+  try {
+    if (res.success) {
+      // 
+    } else {
+      if (res.error.message)
+        showSnackbar(res.error.message, 'error')
+      throw new Error(`Starting error! Status: ${response.status}, Details: ${JSON.stringify(res.error)}`)
+    }
+  } catch (error) {
+    console.error('Error starting the game:', error);
   }
 }
 

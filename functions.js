@@ -3,12 +3,31 @@ function generateRoomId(notEqu = []) {
   let rndString = '';
 
   do {
+    rndString = '';
     for (let i = 0; i < 5; i++) {
       rndString += chars.charAt(Math.floor(Math.random() * chars.length));
     }
   } while (notEqu.includes(rndString))
 
   return rndString;
+}
+
+function generateKey(notEqu = []) {
+  const chars = '0123456789abcdef';
+  let rndString = '';
+
+  do {
+    rndString = '';
+    for (let i = 0; i < 16; i++) {
+      rndString += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+  } while (notEqu.includes(rndString))
+
+  return rndString;
+}
+
+function validUsername(uname) {
+  return /^[a-zA-Z0-9 !@#$%^&*()_+\[\]:,.?~\\/-]{1,25}$/.test(uname)
 }
 
 function shuffle(array) {
@@ -27,8 +46,20 @@ function createArrayFromLength(length) {
   return result;
 }
 
+function validUUId(uuid) {
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(uuid);
+}
+
+function validDocID(id) {
+  return /^[0-9a-fA-F]{24}$/.test(id);
+}
+
 module.exports = {
   generateRoomId,
+  generateKey,
+  validUsername,
   shuffle,
-  createArrayFromLength
+  createArrayFromLength,
+  validUUId,
+  validDocID
 }

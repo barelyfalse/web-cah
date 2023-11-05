@@ -36,6 +36,10 @@ const roomSchema = new Schema(
       type: Number,
       required: true,
     },
+    roundCzarId: {
+      type: String,
+      required: false
+    },
     state: {
       type: String,
       required: true,

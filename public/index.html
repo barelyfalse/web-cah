@@ -25,6 +25,12 @@
     </div>
   </template>
   <div id="full-overlay">
+    
+    
+    <div id="game" class="view">
+      
+    <div id="card-selection"></div>
+    </div>
     <div id="lobby" class="view view-move">
       <div class="room-title">
         <h2>Lobby</h2>
@@ -42,7 +48,7 @@
       </div>
       <div class="lobby-actions">
         <button class="btn btn-primary" onclick="leaveRoom()">Leave room</button>
-        <button id="game-start-btn" class="btn btn-primary" onclick="startGame()" style="display: none;"">Start game</button>
+        <button id="game-start-btn" class="btn btn-primary" onclick="startGame()" style="display: none;">Start game</button>
       </div>
       
     </div>
@@ -66,7 +72,6 @@
       <button class="btn btn-primary" onclick="joinView()">Join Room</button>
       <button class="btn btn-primary" onclick="createView()">Create Room</button>
     </div>
-    <div id="card-selection"></div>
     <div id="snackbar-holder"></div>
   </div>
 </body>

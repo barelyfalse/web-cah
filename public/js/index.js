@@ -3,6 +3,7 @@ const selectionZoneEl = document.getElementById('card-selection')
 const fview = document.getElementById('face')
 const pview = document.getElementById('prepare')
 const lview = document.getElementById('lobby')
+const gview = document.getElementById('game')
 
 //Pusher.logToConsole = true;
 const pusher = new Pusher('16494569c1a82a4fde64', {
@@ -104,14 +105,14 @@ function handleDocumentTap(event) {
 /**
  * GAME
  */
-function spawnCards() {
-  cards = new Array()
-  for (let i = 0; i < 10; i++) {
+function spawnCards(newCards) {
+  setSelectionZoneWidth()
+  for (let i = 0; i < newCards.length; i++) {
     const startingX = selectionZoneRect.left + i * (rootFontSize * 4)
     cards.push(
       new Card(
-        1,
-        whiteCards[Math.floor(Math.random() * whiteCards.length)].text,
+        newCards[i].id,
+        newCards[i].text,
         startingX,
         selectionZoneRect.bottom + 200
       )
@@ -148,7 +149,7 @@ function getCard() {
   cards.push(
     new Card(
       1,
-      whiteCards[Math.floor(Math.random() * whiteCards.length)].text,
+      'cartica',
       selectionZoneRect.right,
       selectionZoneRect.bottom + 200
     )
@@ -162,6 +163,7 @@ function getCard() {
 function joinView() {
   if (fview && pview) {
     fview.classList.add('view-move')
+    gview.classList.add('view-move')
     pview.classList.remove('view-move')
     document.getElementById('prepare-looby-id-form')
       ? (document.getElementById('prepare-looby-id-form').style.display =
@@ -180,6 +182,7 @@ function joinView() {
 function createView() {
   if (fview && pview) {
     fview.classList.add('view-move')
+    gview.classList.add('view-move')
     pview.classList.remove('view-move')
     document.getElementById('prepare-looby-id-form')
       ? (document.getElementById('prepare-looby-id-form').style.display =
@@ -199,6 +202,7 @@ function showFace() {
   if (fview && pview) {
     fview.classList.remove('view-move')
     pview.classList.add('view-move')
+    gview.classList.add('view-move')
   }
 }
 
@@ -206,7 +210,17 @@ function lobbyView() {
   if (lview) {
     fview.classList.add('view-move')
     pview.classList.add('view-move')
+    gview.classList.add('view-move')
     lview.classList.remove('view-move')
+  }
+}
+
+function gameView() {
+  if (gview) {
+    fview.classList.add('view-move')
+    pview.classList.add('view-move')
+    lview.classList.add('view-move')
+    gview.classList.remove('view-move')
   }
 }
 
@@ -292,6 +306,7 @@ function deleteLobbyPlayer(id) {
 function setChannel(channelName, id) {
   channel = pusher.subscribe('presence-' + id)
   const masterId = getCookie('cah_mid')
+  const clientId = getCookie('cah_uid')
   let playerlist = lview.querySelector('.lobby-list')
   channel.bind('pusher:subscription_succeeded', (members) => {
     document.getElementById('roomid_input')
@@ -327,6 +342,22 @@ function setChannel(channelName, id) {
   channel.bind('pusher:member_removed', (member) => {
     deleteLobbyPlayer(member.id)
     showSnackbar(member.info.uname + ' leave', 'info')
+  })
+  channel.bind('start-game', (data) => {
+    gameView()
+    showSnackbar('Game started', 'info')
+    console.log('starting game')
+    cards = new Array()
+  })
+  channel.bind('round-start', (data) => {
+    setTimeout(() => {
+      // set state (czar or jester)
+      // show czar
+      showSnackbar('New round started', 'info')
+      // add new cards
+      spawnCards(data.newCards.find((set) => set.player == clientId).cards)
+      // show black card
+    }, 1000)
   })
 }
 
@@ -480,10 +511,12 @@ async function leaveRoom() {
 
 async function startGame() {
   try {
+    const response = await fetch('/start-game', { method: 'POST' })
+    const res = await response.json()
     if (res.success) {
       //
     } else {
-      if (res.error.message) showSnackbar(res.error.message, 'error')
+      if (res.error) showSnackbar(res.error.message, 'error')
       throw new Error(
         `Starting error! Status: ${response.status}, Details: ${JSON.stringify(
           res.error

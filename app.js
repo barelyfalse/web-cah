@@ -99,7 +99,7 @@ app.post('/create-room', async (req, res) => {
       let newRoom = new Room({
         publicId: roomPublicId,
         players: [
-          { id: uid, uName: uname, score: 0, deck: [], state: 'lobby' },
+          { id: uid, uName: uname, score: [], lastReponse: [], state: 'lobby' },
         ],
         blacks: bcards,
         whites: wcards,
@@ -167,6 +167,7 @@ app.post('/join-room', async (req, res) => {
           message: 'Invalid username',
         },
       })
+      return
     }
     // search for room
     Room.findOneAndUpdate(
@@ -176,8 +177,8 @@ app.post('/join-room', async (req, res) => {
           players: {
             id: uid,
             uName: uname,
-            score: 0,
-            deck: [],
+            score: [],
+            lastResponse: [],
             state: 'lobby',
           },
         },
@@ -193,25 +194,26 @@ app.post('/join-room', async (req, res) => {
               message: "Room doesn't exist!",
             },
           })
-        } else {
-          const cookies = [
-            `cah_uid=${uid}; Max-Age=21600; Secure`,
-            `cah_uname=${uname}; Max-Age=21600; Secure`,
-            `cah_rid=${room._id}; Max-Age=21600; Secure`,
-            `cah_mid=${room.masterId}; Max-Age=21600; Secure`,
-          ]
-          res.setHeader('Set-Cookie', cookies)
-          res.status(200).json({
-            success: true,
-            data: {
-              roomId: room._id,
-              roomPId: room.publicId,
-            },
-            error: null,
-          })
+          return
         }
+        const cookies = [
+          `cah_uid=${uid}; Max-Age=21600; Secure`,
+          `cah_uname=${uname}; Max-Age=21600; Secure`,
+          `cah_rid=${room._id}; Max-Age=21600; Secure`,
+          `cah_mid=${room.masterId}; Max-Age=21600; Secure`,
+        ]
+        res.setHeader('Set-Cookie', cookies)
+        res.status(200).json({
+          success: true,
+          data: {
+            roomId: room._id,
+            roomPId: room.publicId,
+          },
+          error: null,
+        })
       })
       .catch((err) => {
+        console.log(err)
         res.status(500).json({
           success: false,
           data: null,
@@ -407,9 +409,10 @@ app.post('/leave-room', async (req, res) => {
 
 app.post('/start-game', async (req, res) => {
   const uid = req.cookies.cah_uid
-  const rid = req.cookies.cah_mid
+  const rid = req.cookies.cah_rid
   const mkey = req.cookies.cah_mkey
-  // valid master uid?
+
+  // is valid uid?
   if (!validUUId(uid)) {
     res.status(400).json({
       success: false,
@@ -419,57 +422,138 @@ app.post('/start-game', async (req, res) => {
         detail: 'Invalid ID provided',
       },
     })
-  } else {
-    Room.findById(rid)
-      .then((room) => {
-        if (!room) {
-          res.status(404).json({
-            success: false,
-            data: null,
-            error: {
-              message: 'An error ocurred',
-              detail: 'Room Not Found',
-            },
-          })
-        } else {
-          if (room.masterKey != mkey) {
-            res.status(403).json({
-              success: false,
-              data: null,
-              error: {
-                detail: 'Forbidden',
-              },
-            })
-          } else {
-            // pop hand cards
-            // pop black card
-            // raise start game event
-            // send player order list
-            // raise round start on each player
-            // send cards, czar, black card
+    return
+  }
 
-            res.status(200).json({
-              success: false,
-              data: null,
-              error: null,
-            })
-          }
-        }
-      })
-      .catch((err) => {
-        console.log(err)
-        res.status(500).json({
+  Room.findById(rid)
+    .then((room) => {
+      // valid room?
+      if (!room) {
+        res.status(404).json({
           success: false,
           data: null,
           error: {
             message: 'An error ocurred',
-            detail: 'Error when finding room',
+            detail: 'Room Not Found',
           },
         })
-      })
-  }
+        return
+      }
 
-  // get
+      // is game master?
+      if (room.masterKey != mkey) {
+        res.status(403).json({
+          success: false,
+          data: null,
+          error: {
+            detail: 'Forbidden',
+          },
+        })
+        return
+      }
+
+      // set round
+      room.curRound = 1
+      room.markModified('curRound')
+
+      // pop black card
+      const blackCard = room.blacks.pop()
+      room.markModified('blacks')
+
+      // prepare player list
+      let playerList = []
+      for (let i = 0; i < room.players.length; i++) {
+        playerList.push({
+          id: room.players[i].id,
+          uname: room.players[i].uName,
+        })
+        room.players[i].state = 'ingame'
+      }
+      room.markModified('players')
+
+      // prepare player hands
+      let deckList = []
+      for (let i = 0; i < room.players.length; i++) {
+        deckList.push(room.whites.splice(0, 7))
+      }
+      room.markModified('whites')
+
+      // set czar
+      room.roundCzarId = room.players[0].id
+      room.markModified('roundCzarId')
+
+      // save document
+      room
+        .save()
+        .then((roomu) => {
+          try {
+            pusher.trigger('presence-' + rid, 'start-game', {
+              playerList: playerList,
+            })
+            let payload = {
+              czarId: roomu.roundCzarId,
+              blackCard: {
+                id: blackCard,
+                text: spaBlack[blackCard].text,
+                req: spaBlack[blackCard].whiteRequirement,
+              },
+              newCards: [],
+            }
+            for (let i = 0; i < playerList.length; i++) {
+              payload.newCards.push({
+                player: playerList[i].id,
+                cards: deckList[i].map((id) => {
+                  return { id: id, text: spaWhite[id].text }
+                }),
+              })
+            }
+            pusher.trigger('presence-' + roomu._id, 'round-start', payload)
+            /* pusher.sendToUser(playerList[i].id, 'round-start', {
+              newCards: deckList[i].map((id) => {
+                return { id: id, text: spaWhite[id].text }
+              }),
+              black: { id: blackCard, text: spaBlack[blackCard] },
+              czarId: roomu.roundCzarId,
+            }) */
+            res.status(200).json({
+              success: true,
+              data: null,
+              error: null,
+            })
+          } catch (error) {
+            res.status(500).json({
+              success: false,
+              data: null,
+              error: {
+                message: 'An error ocurred',
+                detail: 'Error raising room events',
+              },
+            })
+          }
+        })
+        .catch((err) => {
+          console.log(err)
+          res.status(500).json({
+            success: false,
+            data: null,
+            error: {
+              message: 'An error ocurred',
+              detail: 'Error updating the room',
+            },
+          })
+        })
+    })
+    .catch((err) => {
+      console.log(err)
+      res.status(500).json({
+        success: false,
+        data: null,
+        error: {
+          message: 'An error ocurred',
+          detail: 'Error retrieving the room',
+        },
+      })
+    })
 })
 
 // Connection to mongodb
